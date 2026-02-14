@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Valentine Surprise</title>
+  <style>
+    :root{
+      --bg1:#0f1020;
+      --bg2:#1a1b3a;
+      --card:#ffffff12;
+      --text:#ffffff;
+      --muted:#ffffffb3;
+      --yes:#41d18a;
+      --no:#ff6b6b;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+      color:var(--text);
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      background: radial-gradient(1200px 600px at 20% 20%, #ff4fd8aa, transparent 60%),
+                  radial-gradient(900px 500px at 80% 30%, #4fe7ffaa, transparent 55%),
+                  linear-gradient(135deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+    .wrap{
+      width:min(920px, 92vw);
+      padding:18px;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid #ffffff22;
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:22px;
+      backdrop-filter: blur(10px);
+    }
+    h1{
+      margin:0 0 8px 0;
+      font-size: clamp(20px, 4vw, 34px);
+      letter-spacing:.02em;
+    }
+    p{margin:6px 0;color:var(--muted); line-height:1.6}
+    .stage{
+      margin-top:18px;
+      position:relative;
+      height: 320px;
+      border-radius: calc(var(--radius) + 6px);
+      border:1px dashed #ffffff33;
+      background: #00000015;
+      overflow:hidden;
+    }
+    .buttons{
+      position:absolute;
+      inset:0;
+      padding:18px;
+    }
+    .btn{
+      position:absolute;
+      border:none;
+      border-radius:999px;
+      padding:14px 18px;
+      font-size:18px;
+      font-weight:700;
+      cursor:pointer;
+      user-select:none;
+      box-shadow: 0 12px 24px rgba(0,0,0,.25);
+      transition: transform .08s ease;
+      touch-action: manipulation;
+    }
+    .btn:active{ transform: scale(0.98); }
+    .yes{ background:var(--yes); color:#0b1a11; }
+    .no{ background:var(--no); color:#240b0b; }
+
+    .hud{
+      margin-top:12px;
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .badge{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:8px 12px;
+      border:1px solid #ffffff22;
+      border-radius:999px;
+      background:#00000018;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .msg{
+      margin-top:14px;
+      display:none;
+      gap:14px;
+      align-items:center;
+      border:1px solid #ffffff22;
+      background:#00000020;
+      border-radius: var(--radius);
+      padding:14px;
+    }
+    .msg.show{ display:flex; }
+    .msg img{
+      width:72px;height:72px;object-fit:cover;border-radius:14px;
+      border:1px solid #ffffff22;
+      flex:0 0 auto;
+    }
+    .msg .text{
+      color:var(--text);
+      font-weight:700;
+      line-height:1.4;
+    }
+    .msg .sub{
+      color:var(--muted);
+      font-weight:500;
+      font-size:14px;
+      margin-top:2px;
+    }
+
+    .videoModal{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.75);
+      display:none;
+      place-items:center;
+      padding:18px;
+      z-index:999;
+    }
+    .videoModal.show{ display:grid; }
+    .videoBox{
+      width:min(920px, 95vw);
+      background:#0b0c16;
+      border:1px solid #ffffff22;
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .videoTop{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 12px;
+      border-bottom:1px solid #ffffff18;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .close{
+      border:none;
+      background:#ffffff1a;
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    video{
+      width:100%;
+      display:block;
+      background:black;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>ハッピーバレンタイン🍫</h1>
+      <p>ちょっとだけ遊んでから、サプライズがあるよ。</p>
+      <p><strong>質問：</strong>俺のこと……好き？</p>
+
+      <div class="stage" id="stage">
+        <div class="buttons" id="buttons">
+          <button class="btn yes" id="yesBtn" aria-label="Yes">YES</button>
+          <button class="btn no" id="noBtn" aria-label="No">NO</button>
+        </div>
+      </div>
+
+      <div class="hud">
+        <div class="badge" id="counter">YESが逃げる回数：0</div>
+        <div class="badge" id="hint">ヒント：YESを押してね（押せたら勝ち）</div>
+      </div>
+
+      <div class="msg" id="noMsg">
+        <img src="no_image.png" alt="かわいい画像">
+        <div>
+          <div class="text">えー！ちがうちがう！😂</div>
+          <div class="sub">ちゃんとYES押してって〜（ほら、がんばって捕まえて！）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="videoModal" id="videoModal" role="dialog" aria-modal="true">
+    <div class="videoBox">
+      <div class="videoTop">
+        <div>💌 Surprise</div>
+        <button class="close" id="closeBtn">閉じる</button>
+      </div>
+      <video id="video" src="video.mp4" playsinline controls></video>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== 設定（ここだけ好みで変えればOK）======
+  const ESCAPE_LIMIT = 5;       // YESが逃げる回数（おすすめ 5 / あなたの案なら 10）
+  const ESCAPE_PADDING = 12;    // 端に寄りすぎない余白
+  const MIN_DISTANCE = 120;     // カーソルが近づいたと判定する距離(px)
+  // ==============================================
+
+  const stage = document.getElementById('stage');
+  const yesBtn = document.getElementById('yesBtn');
+  const noBtn = document.getElementById('noBtn');
+  const counter = document.getElementById('counter');
+  const hint = document.getElementById('hint');
+  const noMsg = document.getElementById('noMsg');
+
+  const modal = document.getElementById('videoModal');
+  const video = document.getElementById('video');
+  const closeBtn = document.getElementById('closeBtn');
+
+  let escapeCount = 0;
+  let yesLocked = false;
+
+  // 初期配置
+  function placeInitial(){
+    const rect = stage.getBoundingClientRect();
+    // YESを右寄り、NOを左寄りに置く
+    moveBtnTo(yesBtn, rect.width * 0.62, rect.height * 0.52);
+    moveBtnTo(noBtn,  rect.width * 0.22, rect.height * 0.52);
+  }
+
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+  function moveBtnTo(btn, x, y){
+    const s = stage.getBoundingClientRect();
+    const b = btn.getBoundingClientRect();
+    // stage内座標に変換して配置
+    const maxX = s.width - b.width - ESCAPE_PADDING;
+    const maxY = s.height - b.height - ESCAPE_PADDING;
+    const nx = clamp(x - b.width/2, ESCAPE_PADDING, maxX);
+    const ny = clamp(y - b.height/2, ESCAPE_PADDING, maxY);
+    btn.style.left = nx + 'px';
+    btn.style.top  = ny + 'px';
+  }
+
+  function randomFarPoint(fromX, fromY){
+    const s = stage.getBoundingClientRect();
+    const b = yesBtn.getBoundingClientRect();
+    const maxX = s.width - b.width - ESCAPE_PADDING;
+    const maxY = s.height - b.height - ESCAPE_PADDING;
+
+    // なるべくカーソルから離れた地点を数回試行して選ぶ
+    let best = null;
+    for(let i=0;i<18;i++){
+      const x = ESCAPE_PADDING + Math.random() * (maxX - ESCAPE_PADDING);
+      const y = ESCAPE_PADDING + Math.random() * (maxY - ESCAPE_PADDING);
+      const dx = (x + b.width/2) - fromX;
+      const dy = (y + b.height/2) - fromY;
+      const d2 = dx*dx + dy*dy;
+      if(!best || d2 > best.d2) best = {x, y, d2};
+    }
+    return best;
+  }
+
+  function updateHud(){
+    counter.textContent = `YESが逃げる回数：${escapeCount}`;
+    if (yesLocked){
+      hint.textContent = 'OK！今ならYES押せるよ😏';
+    } else {
+      hint.textContent = 'ヒント：YESを押してね（押せたら勝ち）';
+    }
+  }
+
+  // YESが逃げる処理（マウス/タッチ両対応）
+  function tryEscape(pointerX, pointerY){
+    if (yesLocked) return;
+
+    const s = stage.getBoundingClientRect();
+    const yRect = yesBtn.getBoundingClientRect();
+    // カーソル位置をstage内座標へ
+    const px = pointerX - s.left;
+    const py = pointerY - s.top;
+
+    // YES中心までの距離
+    const cx = (yRect.left - s.left) + yRect.width/2;
+    const cy = (yRect.top  - s.top ) + yRect.height/2;
+    const dx = cx - px;
+    const dy = cy - py;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist <= MIN_DISTANCE){
+      // 逃げる
+      escapeCount++;
+      if (escapeCount >= ESCAPE_LIMIT){
+        yesLocked = true; // もう逃げない
+        updateHud();
+        return;
+      }
+      const p = randomFarPoint(px, py);
+      moveBtnTo(yesBtn, p.x, p.y);
+      updateHud();
+    }
+  }
+
+  // PC: マウス移動で反応
+  stage.addEventListener('mousemove', (e) => {
+    tryEscape(e.clientX, e.clientY);
+  });
+
+  // スマホ: 指が近づいたときも反応（touchmove）
+  stage.addEventListener('touchmove', (e) => {
+    const t = e.touches?.[0];
+    if(!t) return;
+    tryEscape(t.clientX, t.clientY);
+  }, {passive:true});
+
+  // YESクリック：動画再生
+  yesBtn.addEventListener('click', async () => {
+    // 逃げが残ってる時にクリックできたら「勝ち」なのでそのまま通す
+    modal.classList.add('show');
+    noMsg.classList.remove('show');
+
+    try{
+      video.currentTime = 0;
+      await video.play(); // クリック起点なので自動再生制限に引っかかりにくい
+    }catch(err){
+      // iOSで稀にplayが失敗したら、ユーザーに手動再生してもらう
+      // controlsを出してるのでOK
+    }
+
+    // できれば全画面
+    try{
+      if (video.requestFullscreen) await video.requestFullscreen();
+    }catch(e){}
+  });
+
+  // NOクリック：メッセージ＋画像
+  noBtn.addEventListener('click', () => {
+    noMsg.classList.add('show');
+
+    // ちょっとずつYESを大きくして「押せる気がする」演出も入れる（嫌なら消してOK）
+    const scale = 1 + Math.min(0.7, escapeCount * 0.06);
+    yesBtn.style.transform = `scale(${scale})`;
+
+    // ついでにYESの逃げ回数を1回進める（押させる方向へ寄せる演出）
+    if (!yesLocked && escapeCount < ESCAPE_LIMIT - 1) {
+      escapeCount++;
+      updateHud();
+    }
+  });
+
+  // モーダル閉じる
+  function closeModal(){
+    modal.classList.remove('show');
+    try{ video.pause(); }catch(e){}
+  }
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // 初期化
+  window.addEventListener('resize', placeInitial);
+  placeInitial();
+  updateHud();
+})();
+</script>
+</body>
+</html>
