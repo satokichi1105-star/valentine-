@@ -426,9 +426,13 @@ STATES = {
 }
 
 
-def build_svg(state: str | None) -> str:
-    """state を指定すると単体ファイル、None なら全状態入りを返す."""
-    uid = f"frx-{state or 'all'}"
+def build_svg(state: str | None, uid_extra: str = "") -> str:
+    """state を指定すると単体ファイル、None なら全状態入りを返す.
+
+    uid_extra は clipPath の id に足す接尾辞。同じ SVG を 1 つの
+    ドキュメントに 2 回インラインするときに id 衝突を避けるために使う。
+    """
+    uid = f"frx-{state or 'all'}{uid_extra}"
     css = "\n".join(
         STATE_CSS[s].format(p=f".frx-{s} ")
         for s in (STATES if state is None else [state])
@@ -457,10 +461,15 @@ def build_svg(state: str | None) -> str:
 """
 
 
-def build_preview(files: dict[str, str], inline_svg: str) -> str:
+def build_preview(inline_svg: str) -> str:
+    """5 状態 + 切り替えデモの確認ページ.
+
+    SVG はすべて直接インラインしてあるので、このファイル 1 つだけを
+    どこに置いても (file:// で開いても) そのまま動く。
+    """
     cards = "\n".join(
         f"""      <figure class="card">
-        <img src="{files[s]}" alt="{s}" width="200" height="200">
+        {build_svg(s)}
         <figcaption><b>{s}</b><br>{label}</figcaption>
       </figure>"""
         for s, label in STATES.items()
@@ -478,6 +487,7 @@ def build_preview(files: dict[str, str], inline_svg: str) -> str:
   h1 {{ font-size: 20px; margin: 0 0 6px; }}
   p.lead {{ margin: 0 0 22px; color: #ffffff99; font-size: 13px; line-height: 1.7; }}
   .grid {{ display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 34px; }}
+  .card svg {{ width: 200px; height: 200px; }}
   .card {{ margin: 0; padding: 14px; width: 228px; text-align: center;
     background: #ffffff10; border: 1px solid #ffffff22; border-radius: 16px; }}
   figcaption {{ margin-top: 8px; font-size: 12px; line-height: 1.6; color: #ffffffcc; }}
@@ -495,12 +505,12 @@ def build_preview(files: dict[str, str], inline_svg: str) -> str:
 </head>
 <body>
 <h1>🐶 French Bulldog — SVG flat vector</h1>
-<p class="lead">上段は状態ごとの単体ファイルを &lt;img&gt; で読み込んだもの。<br>
-下段は全状態入りの 1 枚をインラインし、ルートの class を差し替えて切り替えている。</p>
+<p class="lead">このページは SVG をすべて直接インラインしてあるので、単体で開いても動く。<br>
+下段は全状態入りの 1 枚を、ルートの class を差し替えて切り替えている。</p>
 <div class="grid">
 {cards}
   <figure class="card light">
-    <img src="{files["idle"]}" alt="idle on light" width="200" height="200">
+    {build_svg("idle", "-b")}
     <figcaption><b>明るい背景でも</b><br>輪郭線があるので崩れない</figcaption>
   </figure>
 </div>
@@ -543,7 +553,7 @@ def main() -> None:
         files[state] = name
     (out / "frenchie.svg").write_text(build_svg(None), encoding="utf-8")
     (out / "preview.html").write_text(
-        build_preview(files, build_svg(None)), encoding="utf-8"
+        build_preview(build_svg(None)), encoding="utf-8"
     )
 
     total = sum((out / f).stat().st_size for f in files.values())

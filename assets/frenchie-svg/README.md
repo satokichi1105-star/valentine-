@@ -18,6 +18,26 @@ Pillow などの依存はなし (標準ライブラリだけ)。
 | `frenchie-<state>.svg` | 状態ごとの単体ファイル。`<img src>` でそのまま動く |
 | `frenchie.svg` | 全状態入り。ルートの class で切り替える (インライン用) |
 | `preview.html` | 5 状態を並べた確認ページ + 切り替えデモ |
+| `raster/<state>.gif` `.png` | SVG から書き出したラスタ版 (おまけ) |
+
+`preview.html` は SVG をすべて直接インラインしてあるので、**このファイル 1 つ
+だけをどこに置いてもそのまま動きます** (外部参照ゼロ)。
+
+## SVG が開けない場所向け
+
+チャットのプレビュー、資料への貼り付け、SVG のアニメーションを再生しない
+ビューアなど向けに、GIF / PNG も書き出せます。
+
+```bash
+pip install playwright pillow
+python tools/frenchie_svg_export.py            # assets/frenchie-svg/raster/ へ
+python tools/frenchie_svg_export.py -s 480     # 大きめに書き出す
+```
+
+実際にブラウザで描画してコマを撮るので、本体と違って Playwright と Pillow が
+要ります。各コマは Web Animations API でアニメーションを止めて `currentTime` を
+進めながら撮っているため、ドットや Zzz のずらしもそのまま再現されます。
+(`animation-delay` を上書きする方法だとずらしが消えてしまう。)
 
 ## 状態
 
