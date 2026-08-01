@@ -30,20 +30,23 @@ from PIL import Image
 SIZE = 32  # 1 フレームの一辺 (px)
 
 TRANSPARENT = "."
-K = "K"  # 輪郭線・黒ブチ
-D = "D"  # 濃いグレー (耳の内側など)
-G = "G"  # 明るいグレー (影・マズル)
+K = "K"  # 輪郭線・瞳・鼻
+D = "D"  # 黒い毛 (輪郭線と同化しないよう 1 段明るくしている)
+M = "M"  # 黒い毛の影・耳の内側
+G = "G"  # 白い毛の影・マズルのシワ
 W = "W"  # 白い毛
 
 PALETTE: dict[str, tuple[int, int, int, int]] = {
     TRANSPARENT: (0, 0, 0, 0),
-    K: (26, 26, 32, 255),
-    D: (70, 70, 82, 255),
+    K: (22, 22, 28, 255),
+    D: (56, 56, 68, 255),
+    M: (98, 100, 114, 255),
     G: (168, 170, 182, 255),
     W: (248, 248, 250, 255),
 }
 
-INK = (K, D, G, W)  # 「何か塗られている」色の集合
+INK = (K, D, M, G, W)  # 「何か塗られている」色の集合
+DARK_FUR = (D, M)
 
 
 # --------------------------------------------------------------------------
@@ -96,7 +99,10 @@ class Canvas:
 
     # -- 仕上げ -----------------------------------------------------------
     def shade_bottom(self) -> None:
-        """白い毛の下端 1px をグレーにして立体感を出す."""
+        """白い毛の下端 1px をグレーにして立体感を出す.
+
+        黒い毛はこれ以上暗くすると輪郭線と同化するのでそのまま残す。
+        """
         for y in range(self.h):
             for x in range(self.w):
                 if self.g[y][x] == W and self.get(x, y + 1) == TRANSPARENT:
@@ -170,26 +176,27 @@ class Pose:
 
 
 def draw_eye(cv: Canvas, x0: int, y0: int, style: str) -> None:
-    """3x3 の目. 黒ブチの上に来たときは自動でグレー目にして見えるようにする."""
+    """3x3 の目.
+
+    黒いマスクの上に乗るので、閉じ目は明るいグレー、開き目は黒目の下に
+    グレーのまぶたを敷いて、黒地でも形が見えるようにしている。
+    """
     x0, y0 = int(round(x0)), int(round(y0))
-    dark_bg = cv.get(x0 + 1, y0 + 1) == K
-    main = G if dark_bg else K
+    dark_bg = cv.get(x0 + 1, y0 + 1) in DARK_FUR
 
-    if style == "closed":  # ∪ … 寝ている / 目を閉じている
-        cv.put(x0, y0 + 1, main)
-        cv.put(x0 + 1, y0 + 2, main)
-        cv.put(x0 + 2, y0 + 1, main)
-        return
-    if style == "happy":  # ^ … 嬉しい
-        cv.put(x0, y0 + 2, main)
-        cv.put(x0 + 1, y0 + 1, main)
-        cv.put(x0 + 2, y0 + 2, main)
+    if style in ("closed", "happy"):
+        line = G if dark_bg else K
+        dip = 2 if style == "closed" else 0  # ∪ = 寝顔 / ^ = 笑顔
+        cv.put(x0, y0 + 2 - dip, line)
+        cv.put(x0 + 1, y0 + 1, line)
+        cv.put(x0 + 2, y0 + 2 - dip, line)
         return
 
-    cv.rect(x0, y0, x0 + 2, y0 + 2, main)  # open
-    if dark_bg:
-        cv.put(x0 + 1, y0 + 1, K)  # 瞳
+    cv.rect(x0, y0, x0 + 2, y0 + 2, K)  # 開いた目
     cv.put(x0, y0, W)  # ハイライト
+    if dark_bg:  # 黒地では下まぶたを 1 段明るくして目のふちを立てる
+        for i in range(3):
+            cv.put(x0 + i, y0 + 3, M, over=DARK_FUR)
 
 
 def build_dog(p: Pose) -> Canvas:
@@ -205,17 +212,17 @@ def build_dog(p: Pose) -> Canvas:
     # --- 耳 (頭の後ろ) ---
     lay = Canvas()
     for side in (-1, 1):
-        ex = p.head_cx + side * (5.0 + p.ear_out)
+        ex = p.head_cx + side * (5.1 + p.ear_out)
         ey = p.head_cy - 6.5 + (p.ear_dy_l if side < 0 else p.ear_dy_r) + dy
-        lay.ellipse(ex, ey, 2.6, p.ear_ry, K)
-        lay.ellipse(ex + side * 0.4, ey + 0.8, 1.1, max(1.2, p.ear_ry - 2.0), D)
+        lay.ellipse(ex, ey, 2.8, p.ear_ry, D)
+        lay.ellipse(ex + side * 0.4, ey + 0.8, 1.2, max(1.2, p.ear_ry - 1.9), M)
     base.blit(finish(lay, shade=False))
 
     # --- 胴体 ---
     lay = Canvas()
     lay.ellipse(p.body_cx, p.body_cy + dy, p.body_rx, p.body_ry, W)
     lay.ellipse(  # 背中側の黒ブチ
-        p.body_cx + 3.6, p.body_cy + dy - 1.2, p.body_rx * 0.62, p.body_ry * 0.85, K, over=(W,)
+        p.body_cx + 3.6, p.body_cy + dy - 1.2, p.body_rx * 0.62, p.body_ry * 0.85, D, over=(W,)
     )
     base.blit(finish(lay))
 
@@ -232,11 +239,15 @@ def build_dog(p: Pose) -> Canvas:
     lay = Canvas()
     hx, hy = p.head_cx, p.head_cy + dy
     lay.ellipse(hx, hy, p.head_rx, p.head_ry, W)
-    # 額の黒ブチ。目にかからない高さで止めて、左右非対称にしてブチ犬らしく
-    lay.ellipse(hx - 2.2, hy - 7.0, 6.2, 3.6, K, over=(W,))
+    # 黒いマスク: 額から両目まで覆う
+    lay.ellipse(hx, hy - 1.8, p.head_rx * 1.05, p.head_ry * 0.94, D, over=(W,))
+    lay.ellipse(hx - 4.4, hy + 1.6, 2.8, 3.0, D, over=(W,))  # 左ほおまで下りる
+    # 額の白いブレーズ (上は広く、目のあいだは細く)
+    lay.ellipse(hx - 0.2, hy - 4.8, 1.9, 2.0, W, over=DARK_FUR)
+    lay.rect(hx - 0.5, hy - 5.0, hx + 0.5, hy + 3.0, W, over=DARK_FUR)
     # マズル: 下にずらした同じ楕円を白で重ね、上辺 1px だけ影を残す = 鼻の上のシワ
-    lay.ellipse(hx, hy + 3.0, 4.8, 3.0, G, over=(W, K))
-    lay.ellipse(hx, hy + 3.6, 4.8, 3.0, W, over=(W, K, G))
+    lay.ellipse(hx, hy + 3.0, 4.8, 3.0, G, over=(W, D, M))
+    lay.ellipse(hx, hy + 3.6, 4.8, 3.0, W, over=(W, D, M, G))
 
     draw_eye(lay, hx - 4.5, hy - 2.5 + p.eye_l_dy, p.eyes)
     draw_eye(lay, hx + 2.5, hy - 2.5 + p.eye_r_dy, p.eyes)
@@ -244,11 +255,11 @@ def build_dog(p: Pose) -> Canvas:
     lay.ellipse(hx, hy + 2.0, 2.1, 1.1, K)  # 鼻
     lay.put(hx - 1.5, hy + 1.5, W, over=(K,))  # 鼻のツヤ
 
-    my = hy + 3.5  # 口 (小さい w)
+    my = hy + 3.5  # 口 (小さい w)。鼻と一体の黒い塊にならないよう D で軽く
     for ox in (-0.5, 0.5):
-        lay.put(hx + ox, my, K, over=(W, G))
+        lay.put(hx + ox, my, D, over=(W, G))
     for ox in (-1.5, 1.5):
-        lay.put(hx + ox, my + 1, K, over=(W, G))
+        lay.put(hx + ox, my + 1, D, over=(W, G))
     if p.tongue:
         lay.rect(hx - 0.5, my + 1, hx + 0.5, my + 2, G)
         lay.put(hx - 0.5, my + 2, D, over=(G,))
@@ -352,7 +363,7 @@ def frames_work() -> list[Canvas]:
         )
         cv = build_dog(p)
         lay = Canvas()
-        for i, (x, y) in enumerate(((25, 8), (27, 5), (29, 2))):
+        for i, (x, y) in enumerate(((24, 8), (26, 5), (28, 2))):
             if i < n:
                 lay.put(x, y, W)
                 lay.put(x + 1, y, W)
@@ -364,84 +375,86 @@ def frames_work() -> list[Canvas]:
 
 
 def frames_done() -> list[Canvas]:
-    """完了: しゃがむ → 飛ぶ → 頂点 → 着地."""
+    """完了: しゃがむ → 踏み切り → 頂点 → 着地.
+
+    32px の枠は耳の先から前あしまででほぼ埋まっていて上に逃げ場がないので、
+    「体を持ち上げる」のではなく「あしをたたんで足元に隙間を作る」ことで
+    浮いて見せている。
+    """
     out = []
 
-    # 0: しゃがみ (つぶれる)
+    # 0: しゃがみ (つぶれる)。地面の位置は他の状態と揃える
     p0 = Pose(
-        dy=1.0,
-        body_ry=4.2,
+        body_cy=24.0,
+        body_ry=4.3,
         body_rx=6.5,
-        body_cy=24.2,
-        head_cy=14.2,
+        head_cy=14.0,
         head_ry=5.6,
         head_rx=7.2,
-        ear_ry=3.4,
-        ear_dy_l=1.0,
-        ear_dy_r=1.0,
+        ear_ry=3.6,
+        ear_dy_l=0.8,
+        ear_dy_r=0.8,
         eyes="happy",
-        paw_l=(11.8, 28.2),
-        paw_r=(19.2, 28.2),
-        tail=(22.8, 23.2),
+        paw_l=(11.6, 27.8),
+        paw_r=(19.4, 27.8),
+        tail=(22.6, 23.2),
     )
     out.append(build_dog(p0))
 
-    # 1: 踏み切り (のびる)
+    # 1: 踏み切り (のびる)。あしはまだ地面
     p1 = Pose(
-        dy=-4.0,
+        dy=-0.4,
         body_ry=5.6,
-        body_rx=5.4,
+        body_rx=5.3,
         head_ry=6.2,
         head_rx=6.6,
-        ear_ry=4.6,
-        ear_dy_l=-1.0,
-        ear_dy_r=-1.0,
+        ear_ry=3.8,
         eyes="happy",
         tongue=True,
-        paw_l=(12.8, 28.0),
-        paw_r=(18.2, 28.0),
-        tail=(23.2, 21.0),
+        paw_l=(12.8, 28.4),
+        paw_r=(18.2, 28.4),
+        tail=(23.0, 21.2),
     )
     cv1 = build_dog(p1)
     for x in (7, 24):  # 砂ぼこり
-        cv1.put(x, 30, G)
-        cv1.put(x + (1 if x < 16 else -1), 31, G)
+        cv1.put(x, 29, G)
+        cv1.put(x + (1 if x < 16 else -1), 30, G)
     out.append(cv1)
 
-    # 2: 頂点 (足をたたんで空中)
+    # 2: 頂点。あしをたたんで足元を 3px 空ける = 浮いている
     p2 = Pose(
-        dy=-6.0,
-        body_ry=5.2,
+        dy=-1.2,
+        body_ry=4.9,
         body_rx=6.0,
-        ear_dy_l=-1.4,
-        ear_dy_r=-1.4,
+        ear_dy_l=0.2,
+        ear_dy_r=0.2,
         ear_out=1.0,
         eyes="happy",
         tongue=True,
-        paw_l=(10.6, 26.0),
-        paw_r=(20.4, 26.0),
-        tail=(23.6, 20.4),
+        paw_l=(11.2, 26.4),
+        paw_r=(19.8, 26.4),
+        tail=(23.4, 20.6),
     )
     cv2 = build_dog(p2)
     lay = Canvas()
-    sparkle(lay, 4, 8)
-    sparkle(lay, 28, 6)
-    sparkle(lay, 26, 20)
+    sparkle(lay, 4, 9)
+    sparkle(lay, 28, 7)
+    sparkle(lay, 27, 24)
     cv2.blit(finish(lay, shade=False))
     out.append(cv2)
 
     # 3: 着地 (軽くつぶれる)
     p3 = Pose(
-        dy=0.0,
-        body_ry=4.7,
-        body_rx=6.3,
-        head_cy=13.0,
-        ear_dy_l=0.4,
-        ear_dy_r=0.4,
+        body_cy=23.6,
+        body_ry=4.6,
+        body_rx=6.4,
+        head_cy=13.2,
+        ear_dy_l=0.5,
+        ear_dy_r=0.5,
         eyes="happy",
-        paw_l=(12.0, 27.8),
-        paw_r=(19.0, 27.8),
-        tail=(23.0, 22.0),
+        paw_l=(12.0, 27.6),
+        paw_r=(19.0, 27.6),
+        tail=(22.8, 22.4),
     )
     cv3 = build_dog(p3)
     cv3.put(7, 29, G)
@@ -463,29 +476,31 @@ def frames_sleep() -> list[Canvas]:
 
         # 耳 (頭より奥。寝ているので少しねかせる)
         lay = Canvas()
-        lay.ellipse(6.0, 15.8, 2.5, 2.7, K)
-        lay.ellipse(5.8, 16.2, 1.1, 1.4, D)
-        lay.ellipse(12.6, 14.6, 2.4, 2.9, K)
-        lay.ellipse(12.8, 15.0, 1.1, 1.5, D)
+        lay.ellipse(6.0, 15.8, 2.6, 2.8, D)
+        lay.ellipse(5.8, 16.2, 1.2, 1.5, M)
+        lay.ellipse(12.6, 14.6, 2.5, 3.0, D)
+        lay.ellipse(12.8, 15.0, 1.2, 1.6, M)
         base.blit(finish(lay, shade=False))
 
         # 丸まった胴体
         lay = Canvas()
         lay.ellipse(17.6, 24.2 - breath, 8.2, 4.6 + breath, W)
-        lay.ellipse(20.4, 22.0 - breath, 5.0, 3.4, K, over=(W,))  # 背中の黒ブチ
+        lay.ellipse(20.4, 22.0 - breath, 5.0, 3.4, D, over=(W,))  # 背中の黒ブチ
         base.blit(finish(lay))
 
         # 体にあずけた頭
         lay = Canvas()
         hx, hy = 9.6, 20.8 - breath * 0.5
         lay.ellipse(hx, hy, 5.8, 5.2, W)
-        lay.ellipse(hx - 0.4, hy - 5.4, 5.4, 3.4, K, over=(W,))  # 額の黒ブチ
-        lay.ellipse(hx - 1.0, hy + 2.2, 4.4, 2.6, G, over=(W, K))  # マズル
-        lay.ellipse(hx - 1.0, hy + 2.7, 4.4, 2.6, W, over=(W, K, G))
-        draw_eye(lay, hx - 4.4, hy - 1.6, "closed")
-        draw_eye(lay, hx + 1.4, hy - 2.0, "closed")
-        lay.ellipse(hx - 3.6, hy + 2.0, 1.7, 1.0, K)  # 鼻 (左向き)
-        lay.put(hx - 4.6, hy + 1.6, W, over=(K,))
+        lay.ellipse(hx + 0.6, hy - 1.2, 5.8, 4.6, D, over=(W,))  # 黒いマスク
+        # 横向きなのでブレーズは額の白い差し毛だけ残す (目にかかると顔が読めない)
+        lay.ellipse(hx - 1.4, hy - 4.0, 1.4, 1.6, W, over=DARK_FUR)
+        lay.ellipse(hx - 1.6, hy + 2.0, 4.4, 2.6, G, over=(W, D, M))  # マズル
+        lay.ellipse(hx - 1.6, hy + 2.5, 4.4, 2.6, W, over=(W, D, M, G))
+        draw_eye(lay, hx - 3.4, hy - 1.6, "closed")
+        draw_eye(lay, hx + 0.6, hy - 2.0, "closed")
+        lay.ellipse(hx - 4.2, hy + 1.8, 1.7, 1.1, K)  # 鼻 (左向き)
+        lay.put(hx - 5.2, hy + 1.4, W, over=(K,))
         base.blit(finish(lay))
 
         # あごの下にたたんだ前あし
@@ -515,6 +530,20 @@ STATES: dict[str, dict] = {
 # --------------------------------------------------------------------------
 # 書き出し
 # --------------------------------------------------------------------------
+
+
+def clipped_edges(cv: Canvas) -> list[str]:
+    """絵が 32px の枠に触れている辺を返す (はみ出し検出用)."""
+    hit = []
+    if any(c != TRANSPARENT for c in cv.g[0]):
+        hit.append("top")
+    if any(c != TRANSPARENT for c in cv.g[-1]):
+        hit.append("bottom")
+    if any(row[0] != TRANSPARENT for row in cv.g):
+        hit.append("left")
+    if any(row[-1] != TRANSPARENT for row in cv.g):
+        hit.append("right")
+    return hit
 
 
 def scaled(img: Image.Image, factor: int) -> Image.Image:
@@ -594,8 +623,11 @@ def main() -> None:
     sheet = Image.new("RGBA", (cols * SIZE, rows * SIZE), (0, 0, 0, 0))
     meta_states = {}
 
+    warnings = []
     for row, (name, canvases) in enumerate(built.items()):
         for col, cv in enumerate(canvases):
+            if hit := clipped_edges(cv):
+                warnings.append(f"  ! {name}_{col} が枠に接しています ({', '.join(hit)})")
             img = cv.to_image()
             sheet.paste(img, (col * SIZE, row * SIZE))
             img.save(out / "frames" / f"{name}_{col}.png")
@@ -645,6 +677,8 @@ def main() -> None:
     print(f"wrote {out}/frenchie_sheet.png  ({cols * SIZE}x{rows * SIZE}, {rows} states)")
     for name, canvases in built.items():
         print(f"  {name:<6} {len(canvases)} frames @ {STATES[name]['fps']}fps")
+    for line in warnings:
+        print(line)
 
 
 if __name__ == "__main__":
