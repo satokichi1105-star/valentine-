@@ -1,0 +1,44 @@
+{
+  "image": "frenchie_sheet.png",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "columns": 4,
+  "rows": 5,
+  "states": {
+    "idle": {
+      "row": 0,
+      "frames": 4,
+      "fps": 4,
+      "label": "待機 (座って尻尾振り)",
+      "loop": true
+    },
+    "walk": {
+      "row": 1,
+      "frames": 4,
+      "fps": 8,
+      "label": "歩行",
+      "loop": true
+    },
+    "work": {
+      "row": 2,
+      "frames": 4,
+      "fps": 5,
+      "label": "作業中 (首かしげ)",
+      "loop": true
+    },
+    "done": {
+      "row": 3,
+      "frames": 4,
+      "fps": 8,
+      "label": "完了 (ジャンプ)",
+      "loop": false
+    },
+    "sleep": {
+      "row": 4,
+      "frames": 3,
+      "fps": 2,
+      "label": "スリープ (丸まる)",
+      "loop": true
+    }
+  }
+}
