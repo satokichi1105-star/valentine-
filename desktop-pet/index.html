@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>French Bulldog desktop pet</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    /* ウィンドウ全体はクリック貫通にしてあるが、念のため */
+    user-select: none;
+    cursor: default;
+  }
+  #dog {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    image-rendering: pixelated;
+    background-repeat: no-repeat;
+    will-change: transform, background-position;
+  }
+  /* ブラウザで開いたときだけ出る確認用 UI */
+  body.demo { background: #12131f; }
+  #demo { display: none; }
+  body.demo #demo {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    font: 13px system-ui, sans-serif;
+    color: #fff;
+  }
+  #demo button {
+    padding: 6px 14px;
+    background: #ffffff18;
+    color: #fff;
+    border: 1px solid #ffffff2a;
+    border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+  }
+  #demo button[aria-pressed="true"] { background: #fff; color: #12131f; }
+</style>
+</head>
+<body>
+<div id="demo"></div>
+<div id="dog"></div>
+<script>
+// 状態ファイルが古くなったときの遷移。tools/frenchie_statusline.py と同じ規則。
+// (表示側が 2 つあるので、ここを変えたら向こうも合わせること)
+const AGE_RULES = {
+  done: [6, "idle"],
+  walk: [30, "idle"],
+  work: [600, "idle"],
+  idle: [300, "sleep"],
+};
+
+function decay(state, age) {
+  let name = state;
+  while (AGE_RULES[name]) {
+    const [limit, next] = AGE_RULES[name];
+    if (age < limit) break;
+    name = next;
+  }
+  return name;
+}
+
+// ブラウザで直接開いたとき用のスタブ。Electron では preload が window.pet を入れる。
+// 犬の div の id を "dog" にしてあるのは、id="pet" にすると window.pet が
+// その要素を指してしまい (ブラウザの名前付きアクセス)、この分岐が壊れるため。
+const bridge = window.pet || {
+  getConfig: async () => ({
+    sheet: "../assets/frenchie/frenchie_sheet.png",
+    meta: await (await fetch("../assets/frenchie/frenchie.json")).json(),
+    scale: 4,
+  }),
+  onState: () => {},
+  demo: true,
+};
+
+const el = document.getElementById("dog");
+let meta = null;
+let scale = 3;
+let current = null;
+let walking = false;
+let x = 0;
+let dir = 1;
+let strollUntil = 0;
+let nextStroll = 0;
+
+function applyState(name) {
+  if (name === current) return;
+  current = name;
+  const s = meta.states[name];
+  el.style.width = meta.frameWidth * scale + "px";
+  el.style.height = meta.frameHeight * scale + "px";
+  el.style.backgroundPositionY = -s.row * meta.frameHeight * scale + "px";
+  el.style.animation = "none";
+  void el.offsetWidth; // 同じ状態に戻したときもアニメを頭から流す
+  el.style.animation =
+    `frenchie-${name} ${(s.frames / s.fps).toFixed(3)}s steps(${s.frames}) ` +
+    (s.loop ? "infinite" : "1 forwards");
+}
+
+function buildKeyframes() {
+  const sheetWidth = meta.columns * meta.frameWidth * scale;
+  const css = Object.entries(meta.states)
+    .map(([name, s]) => {
+      // フレーム数が状態ごとに違うので、行の使用分だけ動かす
+      const to = -s.frames * meta.frameWidth * scale;
+      return `@keyframes frenchie-${name} { from { background-position-x: 0 } to { background-position-x: ${to}px } }`;
+    })
+    .join("\n");
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.appendChild(style);
+  el.style.backgroundSize = `${sheetWidth}px ${meta.rows * meta.frameHeight * scale}px`;
+}
+
+// --- 歩き回る -------------------------------------------------------------
+
+const SPEED = 42; // px/秒
+let last = performance.now();
+
+function tick(now) {
+  const dt = Math.min((now - last) / 1000, 0.1);
+  last = now;
+
+  // 待機中はときどき散歩に出る (ずっと同じ場所にいると置物に見えるので)
+  if (current === "idle" && now > nextStroll) {
+    strollUntil = now + 3000 + Math.random() * 4000;
+    nextStroll = strollUntil + 15000 + Math.random() * 25000;
+  }
+  walking = current === "walk" || (current === "idle" && now < strollUntil);
+
+  if (walking) {
+    if (current === "idle") applyState("walk");
+    const limit = window.innerWidth - meta.frameWidth * scale;
+    x += dir * SPEED * dt;
+    if (x <= 0) { x = 0; dir = 1; }
+    if (x >= limit) { x = limit; dir = -1; }
+    el.style.transform = `translateX(${x}px)`;
+  }
+  requestAnimationFrame(tick);
+}
+
+// --- 起動 -----------------------------------------------------------------
+
+(async () => {
+  const config = await bridge.getConfig();
+  meta = config.meta;
+  scale = config.scale || 3;
+  el.style.backgroundImage = `url("${config.sheet.replace(/"/g, '%22')}")`;
+  buildKeyframes();
+
+  x = Math.random() * Math.max(0, window.innerWidth - meta.frameWidth * scale);
+  el.style.transform = `translateX(${x}px)`;
+  applyState("idle");
+
+  bridge.onState(({ state, age }) => {
+    const next = decay(state, age);
+    if (next !== "idle") strollUntil = 0; // 仕事が来たら散歩は中断
+    applyState(next);
+  });
+
+  if (bridge.demo) {
+    document.body.classList.add("demo");
+    const box = document.getElementById("demo");
+    for (const name of Object.keys(meta.states)) {
+      const b = document.createElement("button");
+      b.textContent = name;
+      b.onclick = () => {
+        applyState(name);
+        strollUntil = 0;
+        [...box.children].forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+      };
+      box.appendChild(b);
+    }
+    box.firstChild.setAttribute("aria-pressed", "true");
+  }
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

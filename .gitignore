@@ -1,3 +1,4 @@
 __pycache__/
 *.py[cod]
 .claude/frenchie.state
+node_modules/

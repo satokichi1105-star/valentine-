@@ -1,0 +1,13 @@
+{
+  "name": "frenchie-desktop-pet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "白黒フレンチブルドッグのデスクトップペット。Claude Code の状態に合わせて動く",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
