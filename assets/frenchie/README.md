@@ -71,6 +71,64 @@ function drawFrenchie(ctx, state, timeMs, x, y, scale = 2) {
 }
 ```
 
+## Claude Code のステータスラインに住まわせる
+
+5 状態はもともと「エージェントの状態を表す」つもりで作ってあるので、
+Claude Code のステータスラインにそのまま置けます。フックが状態を書き、
+ステータスラインがそれを読んでコマを描く、という分担です。
+
+| Claude Code のできごと | フック | 犬 |
+| --- | --- | --- |
+| セッション開始 | `SessionStart` | 待機 |
+| プロンプト送信 | `UserPromptSubmit` | 歩行 |
+| ツール実行の直前 | `PreToolUse` | 作業中 |
+| 応答の終わり | `Stop` | 完了 (ジャンプ) |
+| 6 秒後 / 5 分放置 | (時間で自動) | 待機 → スリープ |
+
+### 使うファイル
+
+| ファイル | 役割 |
+| --- | --- |
+| `assets/frenchie/frenchie_ansi.json` | 全コマを ANSI 文字列に焼いたもの |
+| `tools/frenchie_ansi.py` | 上の JSON を作り直すスクリプト (Pillow 必要) |
+| `tools/frenchie_statusline.py` | 表示側。標準ライブラリのみ・約 30ms |
+| `tools/frenchie-state.sh` | フックから呼ばれて状態を書くだけ |
+| `tools/frenchie-statusline.settings.json` | 設定のひな形 |
+
+### 設定のしかた
+
+`tools/frenchie-statusline.settings.json` の中身を、`.claude/settings.json`
+(このリポジトリだけで有効) か `~/.claude/settings.json` (全プロジェクトで有効)
+にコピーします。すでに `statusLine` や `hooks` がある場合は中身をマージして
+ください。ユーザー設定に置くときは `$CLAUDE_PROJECT_DIR` がこのリポジトリを
+指さないので、パスは絶対パスに書き換えます。
+
+先に手元で確認するなら:
+
+```bash
+python tools/frenchie_statusline.py --demo          # 5 状態を並べて表示
+python tools/frenchie_statusline.py --state work    # 1 状態だけ
+python tools/frenchie_statusline.py --size full     # 全身 (16 行)
+```
+
+### 大きさに注意
+
+ターミナルは 1 文字で上下 2 ドットしか表せないので、**32px の絵は 16 行**
+使います。既定の `--size compact` は状態ごとに顔まわりだけを切り出して 9 行
+(+ 情報行 1 行) に収めていますが、それでも普通のステータスラインよりだいぶ
+背が高いです。`--no-info` で 1 行減らせます。
+
+1/2 に縮小する案は試しましたが、2x2 を多数決で潰すと顔が崩れて犬に見えなく
+なったのでやめました。ドット絵は非整数倍の縮小に耐えません。
+
+### 動きについて
+
+ステータスラインは基本イベント駆動 (新しいメッセージ・`/compact` の完了など)
+なので、放っておくと絵は止まります。ひな形では `refreshInterval: 1` を入れて
+1 秒ごとに描き直しています。最小値が 1 秒なので、尻尾振りや歩行は
+「1 秒に 1 コマ」のゆっくりした動きになります。パラパラ漫画のようには
+動きません。
+
 ## 描き方のしくみ
 
 `tools/frenchie_spritesheet.py` は 1 ドット = 1 文字のグリッド (`Canvas`) に
