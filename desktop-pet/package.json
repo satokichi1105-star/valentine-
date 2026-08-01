@@ -5,7 +5,8 @@
   "description": "白黒フレンチブルドッグのデスクトップペット。Claude Code の状態に合わせて動く",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "debug": "electron . --frenchie-debug"
   },
   "devDependencies": {
     "electron": "^33.0.0"

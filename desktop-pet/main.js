@@ -22,6 +22,16 @@ const STATE_FILE =
 const SCALE = Number(process.env.FRENCHIE_SCALE || 3); // 1 ドットを何 px で描くか
 const WINDOW_HEIGHT = 32 * SCALE + 24; // 犬の高さ + 影や跳ねる余白
 
+// npm run debug で、透明・クリック貫通・ドック隠しを全部外して起動する。
+// 「犬がいない」ときに、ウィンドウ自体が出ていないのか、出ているけど中身が
+// 描けていないのかを切り分けるため。
+const DEBUG =
+  process.argv.includes("--frenchie-debug") || Boolean(process.env.FRENCHIE_DEBUG);
+
+function log(...args) {
+  console.log("[frenchie]", ...args);
+}
+
 let win = null;
 let tray = null;
 
@@ -69,21 +79,27 @@ function watchState() {
 function createWindow() {
   const display = screen.getPrimaryDisplay();
   const { x, y, width, height } = display.bounds; // workArea ではなく bounds
+  const bounds = { x, y: y + height - WINDOW_HEIGHT, width, height: WINDOW_HEIGHT };
+
+  log("画面 bounds:", display.bounds);
+  log("ウィンドウ bounds:", bounds);
+  log("スプライト:", SHEET, fs.existsSync(SHEET) ? "(あり)" : "★見つかりません★");
+  log("状態ファイル:", STATE_FILE, fs.existsSync(STATE_FILE) ? "(あり)" : "(まだ無い)");
 
   win = new BrowserWindow({
-    x,
-    y: y + height - WINDOW_HEIGHT,
-    width,
-    height: WINDOW_HEIGHT,
-    transparent: true,
+    ...bounds,
+    // デバッグ時は「そもそもウィンドウが出ているか」を見たいので、
+    // 透明・パネル・タスクバー隠しをまとめて外す
+    transparent: !DEBUG,
+    backgroundColor: DEBUG ? "#20222f" : undefined,
     frame: false,
     resizable: false,
     movable: false,
-    focusable: false,
-    skipTaskbar: true,
+    skipTaskbar: !DEBUG,
     hasShadow: false,
     fullscreenable: false,
-    type: process.platform === "darwin" ? "panel" : undefined,
+    show: false, // ready-to-show で明示的に出す
+    type: !DEBUG && process.platform === "darwin" ? "panel" : undefined,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -91,15 +107,46 @@ function createWindow() {
     },
   });
 
-  // クリックを下のアプリに素通りさせる (ペットは触れないが邪魔にもならない)
-  win.setIgnoreMouseEvents(true, { forward: true });
+  if (!DEBUG) {
+    // クリックを下のアプリに素通りさせる (ペットは触れないが邪魔にもならない)
+    win.setIgnoreMouseEvents(true, { forward: true });
+  }
   // ドックより手前・全ワークスペースに出す
   win.setAlwaysOnTop(true, "screen-saver");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
+  // 何も見えないときに原因が分かるよう、失敗はすべて拾って出す
+  win.webContents.on("preload-error", (_e, file, error) =>
+    console.error("[frenchie] preload でエラー:", file, error)
+  );
+  win.webContents.on("did-fail-load", (_e, code, desc) =>
+    console.error("[frenchie] 画面の読み込みに失敗:", code, desc)
+  );
+  win.webContents.on("render-process-gone", (_e, details) =>
+    console.error("[frenchie] レンダラが落ちました:", details)
+  );
+  win.webContents.on("console-message", (_e, level, message) => {
+    if (DEBUG || level >= 2) console.log("[frenchie:renderer]", message);
+  });
+
   win.loadFile(path.join(__dirname, "index.html"));
+
+  // ready-to-show が来ないまま黙って消えるのがいちばん困るので、
+  // 3 秒経っても出ていなければ強制的に出して、その旨を残す
+  setTimeout(() => {
+    if (win && !win.isDestroyed() && !win.isVisible()) {
+      console.error("[frenchie] ready-to-show が来ませんでした。強制的に表示します");
+      win.show();
+    }
+  }, 3000);
+
   win.once("ready-to-show", async () => {
+    win.show();
+    log("ウィンドウを表示しました。実際の bounds:", win.getBounds());
+    log("見えている?", win.isVisible(), "/ 最前面?", win.isAlwaysOnTop());
+    if (DEBUG) win.webContents.openDevTools({ mode: "detach" });
     sendState();
+
     // 動作確認用: FRENCHIE_SMOKE にパスを渡すと、その場を 1 枚撮って終了する。
     // 実機に入れたあと「ちゃんと描けているか」を確かめるのに使う。
     if (process.env.FRENCHIE_SMOKE) {
@@ -142,8 +189,14 @@ ipcMain.handle("frenchie:config", () => ({
 }));
 
 app.whenReady().then(() => {
-  app.dock?.hide(); // macOS: ペット自体はドックに出さない
+  log(`起動 (${process.platform}, Electron ${process.versions.electron})`);
+  if (DEBUG) log("デバッグモード: 不透明ウィンドウ + DevTools + クリック貫通なし");
   createWindow();
+  // ドックアイコンを消すのはウィンドウを出したあと。先に呼ぶと macOS で
+  // ウィンドウが出てこないことがある。デバッグ時は消さない (存在確認のため)。
+  if (!DEBUG && !process.env.FRENCHIE_KEEP_DOCK) {
+    setTimeout(() => app.dock?.hide(), 1000);
+  }
   watchState();
   try {
     createTray();

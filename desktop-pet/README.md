@@ -32,6 +32,43 @@ Electron が必要です (`npm install` で入ります)。終了はメニュー
 (ペットは画面に 1 匹なので)。別の場所を見せたいときは
 `FRENCHIE_STATE_FILE` で指定できます。
 
+## 犬が見当たらないとき
+
+透明ウィンドウなので「出ていない」のか「出ているけど中身が描けていない」のか
+見た目では区別がつきません。まずデバッグモードで起動してください。
+
+```bash
+npm run debug
+```
+
+透明・クリック貫通・ドックアイコン隠しを全部外し、**濃い色の不透明な帯**を
+画面下端に出して DevTools を開きます。切り分けはこうなります。
+
+| デバッグモードで | 分かること | 次に見るところ |
+| --- | --- | --- |
+| 帯も出ない | ウィンドウ自体が出ていない | ターミナルのログ (下記) |
+| 帯は出るが犬がいない | 描画側の問題 | DevTools の Console と Network |
+| 帯も犬も出る | 透明・最前面まわりの問題 | `main.js` のウィンドウ設定 |
+
+起動時にこういうログが出ます。ここまで出ていれば、少なくともウィンドウは
+作られています。
+
+```
+[frenchie] 起動 (darwin, Electron 33.x)
+[frenchie] 画面 bounds: { x: 0, y: 0, width: 1512, height: 982 }
+[frenchie] ウィンドウ bounds: { x: 0, y: 862, width: 1512, height: 120 }
+[frenchie] スプライト: /path/to/assets/frenchie/frenchie_sheet.png (あり)
+[frenchie] ウィンドウを表示しました。実際の bounds: {...}
+[frenchie] 見えている? true / 最前面? true
+```
+
+`★見つかりません★` と出ていたら、`desktop-pet/` の 1 つ上に
+`assets/frenchie/frenchie_sheet.png` が無い状態です (リポジトリごと
+持ってきていないと起きます)。
+
+ドックアイコンを消す処理が疑わしいときは `FRENCHIE_KEEP_DOCK=1 npm start`
+で、消さずに起動できます。
+
 ## 環境変数
 
 | 変数 | 既定 | 意味 |
@@ -39,6 +76,8 @@ Electron が必要です (`npm install` で入ります)。終了はメニュー
 | `FRENCHIE_STATE_FILE` | `~/.claude/frenchie.state` | 監視する状態ファイル |
 | `FRENCHIE_SCALE` | `3` | 1 ドットを何 px で描くか (`4` でだいぶ大きい) |
 | `FRENCHIE_SMOKE` | なし | 指定したパスに 1 枚撮って終了する (動作確認用) |
+| `FRENCHIE_DEBUG` | なし | `npm run debug` と同じ (不透明 + DevTools) |
+| `FRENCHIE_KEEP_DOCK` | なし | macOS でドックアイコンを消さない |
 
 ## つくり
 
