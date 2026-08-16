@@ -1,0 +1,899 @@
+<title>先回りされた市場</title>
+
+<style>
+  :root {
+    --paper:      #E9EEF1;
+    --surface:    #FFFFFF;
+    --surface-2:  #F3F6F8;
+    --ink:        #101E24;
+    --ink-muted:  #526670;
+    --ink-faint:  #7C8F98;
+    --rule:       #CBD8DE;
+    --rule-soft:  #DEE7EB;
+    --accent:     #0B6E8C;
+    --accent-bg:  #DDEDF3;
+    --crit:       #A62C31;
+    --crit-bg:    #F6E2E2;
+    --warn:       #8A5710;
+    --warn-bg:    #F6EBD8;
+    --good:       #12654F;
+    --good-bg:    #DDEFE7;
+
+    --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Songti SC", serif;
+    --sans:  "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", "Helvetica Neue", Arial, sans-serif;
+    --mono:  ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0C1317;
+      --surface:    #141F25;
+      --surface-2:  #1A272E;
+      --ink:        #E3EBEF;
+      --ink-muted:  #96A8B1;
+      --ink-faint:  #71858F;
+      --rule:       #2B3D46;
+      --rule-soft:  #223138;
+      --accent:     #56BEDC;
+      --accent-bg:  #10323E;
+      --crit:       #EA7276;
+      --crit-bg:    #3A1F21;
+      --warn:       #DFAB4D;
+      --warn-bg:    #352913;
+      --good:       #4FC3A0;
+      --good-bg:    #14332B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #0C1317;
+    --surface:    #141F25;
+    --surface-2:  #1A272E;
+    --ink:        #E3EBEF;
+    --ink-muted:  #96A8B1;
+    --ink-faint:  #71858F;
+    --rule:       #2B3D46;
+    --rule-soft:  #223138;
+    --accent:     #56BEDC;
+    --accent-bg:  #10323E;
+    --crit:       #EA7276;
+    --crit-bg:    #3A1F21;
+    --warn:       #DFAB4D;
+    --warn-bg:    #352913;
+    --good:       #4FC3A0;
+    --good-bg:    #14332B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.85;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: 64px 0 32px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 20px;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(38px, 7vw, 60px);
+    font-weight: 600;
+    line-height: 1.24;
+    letter-spacing: 0.01em;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 17px;
+    line-height: 1.9;
+    color: var(--ink-muted);
+    margin: 0 0 28px;
+    max-width: 62ch;
+  }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .meta-row b { color: var(--ink-muted); font-weight: 500; }
+
+  /* ---------- verdict ---------- */
+
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--crit);
+    padding: 30px 32px;
+    margin: 40px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .verdict h2 {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--crit);
+    margin: 0;
+  }
+  .verdict p {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 21px;
+    line-height: 1.75;
+    font-weight: 600;
+  }
+  .verdict .sub {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.85;
+    color: var(--ink-muted);
+  }
+
+  /* ---------- sections ---------- */
+
+  section { margin-top: 68px; }
+
+  h2.sec {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 0 0 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
+    text-wrap: balance;
+  }
+
+  .sec-note {
+    font-size: 14px;
+    color: var(--ink-faint);
+    margin: 0 0 32px;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.6;
+    margin: 40px 0 12px;
+  }
+
+  p { margin: 0 0 18px; max-width: 66ch; }
+  p:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; }
+  a:hover { background: var(--accent-bg); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  strong { font-weight: 700; }
+  em { font-style: normal; background: var(--accent-bg); padding: 0 3px; }
+
+  ul { margin: 0 0 18px; padding-left: 1.2em; max-width: 66ch; }
+  li { margin-bottom: 8px; }
+
+  /* ---------- risk cards ---------- */
+
+  .risks {
+    display: grid;
+    gap: 18px;
+    margin-bottom: 32px;
+  }
+
+  .risk {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--sig, var(--accent));
+    padding: 24px 26px;
+  }
+  .risk.crit { --sig: var(--crit); }
+  .risk.warn { --sig: var(--warn); }
+
+  .risk-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .risk-head h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    white-space: nowrap;
+    border-radius: 2px;
+  }
+  .pill.crit { background: var(--crit-bg); color: var(--crit); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.good { background: var(--good-bg); color: var(--good); }
+  .pill.info { background: var(--accent-bg); color: var(--accent); }
+
+  .risk p { font-size: 15px; margin-bottom: 12px; }
+  .risk p:last-child { margin-bottom: 0; }
+
+  /* ---------- tables ---------- */
+
+  .scroller {
+    overflow-x: auto;
+    margin: 0 0 28px;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 560px;
+    font-size: 14.5px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.7;
+  }
+
+  thead th {
+    background: var(--surface-2);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  td.num, th.num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  td.date {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--ink-muted);
+    font-size: 13px;
+  }
+
+  /* ---------- timeline ---------- */
+
+  .timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+    max-width: none;
+    border-left: 2px solid var(--rule);
+  }
+  .timeline li {
+    position: relative;
+    padding: 0 0 24px 26px;
+    margin: 0;
+    max-width: 62ch;
+  }
+  .timeline li::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 9px;
+    width: 10px;
+    height: 10px;
+    background: var(--paper);
+    border: 2px solid var(--rule);
+    border-radius: 50%;
+  }
+  .timeline li.hit::before { border-color: var(--crit); background: var(--crit); }
+  .timeline li.now::before { border-color: var(--accent); background: var(--accent); }
+
+  .tl-date {
+    display: block;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    margin-bottom: 2px;
+  }
+  .tl-body { font-size: 15px; line-height: 1.8; }
+
+  /* ---------- pull quote ---------- */
+
+  blockquote {
+    margin: 32px 0;
+    padding: 22px 0 22px 26px;
+    border-left: 3px solid var(--accent);
+    max-width: 62ch;
+  }
+  blockquote p {
+    font-family: var(--serif);
+    font-size: 20px;
+    line-height: 1.7;
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+  blockquote cite {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-style: normal;
+    color: var(--ink-faint);
+    letter-spacing: 0.03em;
+  }
+
+  /* ---------- options ---------- */
+
+  .option {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    padding: 26px 28px;
+    margin-bottom: 18px;
+  }
+  .option-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .option-head h3 { margin: 0; font-size: 19px; font-family: var(--serif); font-weight: 600; }
+  .option dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 5.5em 1fr;
+    gap: 8px 16px;
+    font-size: 14.5px;
+  }
+  .option dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-top: 5px;
+  }
+  .option dd { margin: 0; line-height: 1.8; }
+
+  /* ---------- caveat ---------- */
+
+  .caveat {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn);
+    padding: 24px 26px;
+    margin: 32px 0;
+  }
+  .caveat h3 { margin: 0 0 10px; font-size: 15px; color: var(--warn); }
+  .caveat p, .caveat li { font-size: 14.5px; color: var(--ink); }
+  .caveat p:last-child, .caveat ul:last-child { margin-bottom: 0; }
+
+  .footnote {
+    margin-top: 72px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-size: 13px;
+    line-height: 1.85;
+    color: var(--ink-faint);
+    max-width: 70ch;
+  }
+  .footnote a { color: var(--ink-muted); }
+
+  @media (max-width: 620px) {
+    body { padding: 0 16px 64px; }
+    .masthead { padding-top: 44px; }
+    .verdict, .risk, .option { padding-left: 20px; padding-right: 20px; }
+    .option dl { grid-template-columns: 1fr; gap: 2px 0; }
+    .option dt { padding-top: 10px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">競合・市場分析 ／ LINE グループ AI ボット構想</p>
+    <h1>先回りされた市場</h1>
+    <p class="standfirst">
+      「LINEのグループトークに招待するAIエージェント」——会話の要約、タスク抽出、過去会話の検索、先回りの提案。
+      この構想を、実在するプレイヤーと数字に当てて検証した。結論は、当初案のままでは推奨できない。
+    </p>
+    <div class="meta-row">
+      <span><b>調査日</b> 2026-08-16</span>
+      <span><b>調査手法</b> Web検索 3系統・並列</span>
+      <span><b>一次ソース直接取得</b> 一部のみ（後述）</span>
+    </div>
+  </header>
+
+  <div class="verdict">
+    <h2>判定</h2>
+    <p>当初構想をこのまま作ることは推奨しない。中核機能はLINEヤフー自身が2026年内に無料提供すると発表済みで、これは「将来のリスク」ではなく既に起きた事象である。</p>
+    <p class="sub">
+      ただし構想全体が無価値なわけではない。「メッセージングをAIの入口にする」という読みは、Luzia 6,500万人・AIチャットくん250万人超という実績が裏づけている。
+      問題は<strong>どのレイヤーで戦うか</strong>であって、チャネルの選択ではない。
+    </p>
+  </div>
+
+  <!-- ============ 1. 三つのリスク ============ -->
+  <section>
+    <h2 class="sec">構想を止めた三つの事実</h2>
+    <p class="sec-note">いずれも推測ではなく、公表済みの出来事にもとづく。</p>
+
+    <div class="risks">
+
+      <article class="risk crit">
+        <div class="risk-head">
+          <h3>LINEヤフーが同じものを出す</h3>
+          <span class="pill crit">直撃</span>
+          <span class="pill info">確度 高</span>
+        </div>
+        <p>
+          2026年7月2日、LINEヤフーが <strong>「Agent i in chat」</strong> を発表。1対1とグループトークの両方でAIエージェントを呼び出し、
+          会話の文脈を理解して応答し、結果をトークルーム全体に共有する。<strong>2026年内提供予定</strong>。
+        </p>
+        <p>
+          発表済みの機能は、メッセージの要約／参加メンバーごとのタスク整理とLINEノートへの登録／カレンダー登録／写真のアルバム整理／レシートからの割り勘計算。
+          構想の中核と大部分が重なる。
+        </p>
+      </article>
+
+      <article class="risk crit">
+        <div class="risk-head">
+          <h3>規約ひとつで消える前例が、半年前にある</h3>
+          <span class="pill crit">構造</span>
+          <span class="pill info">確度 高</span>
+        </div>
+        <p>
+          Metaは2025年10月にWhatsApp Business Solution Termsを改定し、<strong>2026年1月15日、汎用AIアシスタントをAPIから全面排除した。</strong>
+          ChatGPT、Perplexity、Copilot、Luzia、Poke が一斉に締め出されている。
+        </p>
+        <p>
+          Metaの言い分は「汎用AI Botは膨大なトラフィックを生むが、プラットフォーム経由の収益を生まない」。
+          EUとブラジルでは独禁当局が是正させたが、<strong>日本にメッセージングアプリのBot APIを非差別開放させる同等の枠組みは、現時点で見当たらない。</strong>
+        </p>
+      </article>
+
+      <article class="risk warn">
+        <div class="risk-head">
+          <h3>「家族の予定をAIが管理する」は連続で死んでいる</h3>
+          <span class="pill warn">カテゴリ</span>
+          <span class="pill info">確度 高</span>
+        </div>
+        <p>
+          2026年に入ってから、このカテゴリで少なくとも2社が閉じた。Y Combinator と OpenAI が出資した <strong>Milo</strong> は、
+          6年の研究と3年の開発を経て2026年1月に終了。無料の家族オーガナイザー <strong>Maple</strong> は2026年末で終了予定（チームは旅行会社にアクハイア）。
+        </p>
+        <p>
+          隣接領域も同様で、パーソナルAIメモリの Rewind／Limitless は2025年12月にMetaへ買収され製品は事実上終了。
+          AIコンパニオンの Dot は2025年10月に停止した。
+        </p>
+      </article>
+
+    </div>
+
+    <blockquote>
+      <p>技術は、有用と言えるレベルの信頼性を持つには、まだ単純に早すぎる。</p>
+      <cite>Milo 創業者 Avni Patel Thompson ／ 2026年1月のサービス終了告知より</cite>
+    </blockquote>
+
+    <p>
+      Miloの失敗要因として挙げられているのは、<strong>「スケジューリングから献立、アクティビティ提案まで全部やろうとしたこと」</strong>。
+      あわせて「家族の調整業務は、難しく、かつ低マージンなビジネスだ」という総括も残されている。
+      要約・タスク・検索・先回り提案の4つを同時に載せる構想への、直接的な警告として読める。
+    </p>
+  </section>
+
+  <!-- ============ 2. タイムライン ============ -->
+  <section>
+    <h2 class="sec">LINEヤフーはこの3年、着実に降りてきている</h2>
+    <p class="sec-note">「いつか来るかもしれない」ではなく、すでに実装と運用の実績がある領域だという確認。</p>
+
+    <ul class="timeline">
+      <li>
+        <span class="tl-date">2023-11-09</span>
+        <span class="tl-body">LINEオープンチャットに<strong>AIメッセージ要約機能</strong>を提供開始。一定量たまると設定なしでも自動要約が走る。——グループ会話の要約は、すでに3年近い運用実績がある。</span>
+      </li>
+      <li>
+        <span class="tl-date">2025-04-15</span>
+        <span class="tl-body">「LINE AI」「LINE AIトークサジェスト」提供開始。メッセージ提案・口調変換など。</span>
+      </li>
+      <li>
+        <span class="tl-date">2026-01-07</span>
+        <span class="tl-body">「LINE AIアシスタント」をサービス終了し、後述のAgent iへ統合。——自社AIを一本化する意思の表れ。</span>
+      </li>
+      <li>
+        <span class="tl-date">2026-03</span>
+        <span class="tl-body"><strong>「LINEカレンダー」提供開始</strong>。トークルーム単位の共有カレンダー、メッセージ長押しからの予定作成、参加確認、リマインド。——構想の「予定管理」部分は、すでに埋まっている。</span>
+      </li>
+      <li>
+        <span class="tl-date">2026-04-20</span>
+        <span class="tl-body">Yahoo! JAPANとLINEのAIを統合し、AIエージェント新ブランド <strong>「Agent i」</strong> 提供開始。2026年上期中に20以上のエージェント展開を予告。</span>
+      </li>
+      <li class="hit">
+        <span class="tl-date">2026-07-02</span>
+        <span class="tl-body"><strong>「Agent i in chat」発表。2026年内提供予定。</strong> あわせてLINE 15周年ビジョン「Life on LINE with AI Agent」を発表し、トークルームの会話をAIが読み取ってメモ作成・スケジュール／写真整理を任せられるようにすると表明。</span>
+      </li>
+      <li class="now">
+        <span class="tl-date">2026-08-16</span>
+        <span class="tl-body">現在地。<strong>Agent i in chat はまだリリースされていない。</strong> 実機の挙動——特に過去会話をどこまで遡れるか、能動的に通知するか——は未確認。</span>
+      </li>
+      <li>
+        <span class="tl-date">2026-10-01</span>
+        <span class="tl-body">LINE公式アカウントの料金改定。スタンダードプランの追加メッセージが逓減型から2段階制（20万通まで3円／超過2.5円）へ。大量配信ほど不利になる方向。</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 3. 機能の重なり ============ -->
+  <section>
+    <h2 class="sec">構想とAgent i in chat の重なり</h2>
+    <p class="sec-note">白地は1行しか残っていない。しかもその1行にも技術的な制約がかかる。</p>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>構想の機能</th>
+            <th>Agent i in chat での対応</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>会話の要約</td>
+            <td>「メッセージの要約」</td>
+            <td><span class="pill crit">発表済</span></td>
+          </tr>
+          <tr>
+            <td>会話からのタスク抽出・整理</td>
+            <td>参加メンバーごとにタスクを整理し、LINEノートへ登録</td>
+            <td><span class="pill crit">発表済</span></td>
+          </tr>
+          <tr>
+            <td>予定管理・リマインド</td>
+            <td>カレンダー登録支援＋LINEカレンダー</td>
+            <td><span class="pill crit">提供済</span></td>
+          </tr>
+          <tr>
+            <td>文脈を理解した提案</td>
+            <td>会話の文脈を理解して回答、トークルームで共有</td>
+            <td><span class="pill crit">発表済</span></td>
+          </tr>
+          <tr>
+            <td><strong>過去会話の自然言語検索（RAG）</strong></td>
+            <td>明示的な発表なし</td>
+            <td><span class="pill good">白地</span></td>
+          </tr>
+          <tr>
+            <td><strong>能動的な先回り通知</strong></td>
+            <td>「呼び出して使う」モデルと報じられており、明示なし</td>
+            <td><span class="pill warn">条件付き</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>ただし、白地の2つにはそれぞれ壁がある</h3>
+
+    <p>
+      <strong>過去会話の検索には、コールドスタートが再来する。</strong>
+      LINE Messaging APIのWebhookはリアルタイムのみで、<em>Botが参加する前の過去メッセージは取得できない</em>。
+      つまり検索対象は「導入後に貯まった会話」に限られる。導入初日の価値はゼロで、そこから何ヶ月も待つ必要がある。
+    </p>
+
+    <p>
+      <strong>先回り通知には、コストと嫌悪感の両方がかかる。</strong>
+      プッシュメッセージは送信対象<em>人数分</em>カウントされるため、40人グループへの1回の配信は40通。無料枠は月200通。
+      加えて、LINE公式アカウントを<strong>ブロックした経験がある人は全体の7割で、最多の理由は「情報配信頻度の多さ」</strong>。
+      プロダクトの売りと最大のチャーン要因が同一という構造になっている。
+    </p>
+
+    <h3>そして、構造的に不利な制約がひとつ</h3>
+
+    <p>
+      <strong>1つのグループトークに参加できるLINE公式アカウントは1つだけ</strong>で、既に他のアカウントがいるグループに招待されても自動退出する。
+      一方 Agent i in chat は<strong>ネイティブ機能なのでこの枠を消費しない</strong>。
+      サードパーティ同士は限られた1枠を奪い合い、プラットフォーマーは枠外から常駐する——完全な非対称だ。
+    </p>
+    <p>
+      これは諸刃でもある。先に入れたBotは競合を物理的に排除できるので、<strong>ニッチを絞れば先行者利益は極めて硬い</strong>。
+    </p>
+  </section>
+
+  <!-- ============ 4. 経済性 ============ -->
+  <section>
+    <h2 class="sec">数字：コスト構造は良い。市場の側が厳しい。</h2>
+    <p class="sec-note">個人開発として見たとき、損益の形そのものは悪くない。問題は分母。</p>
+
+    <h3>追い風</h3>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>項目</th><th class="num">水準</th><th>意味</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Reply API（発話への返信）</td>
+            <td class="num">通数カウント外</td>
+            <td>月額0円のコミュニケーションプランのまま、会話は実質無制限</td>
+          </tr>
+          <tr>
+            <td>LLMコスト（Haiku級・100ターン／月）</td>
+            <td class="num">約 55 円／人</td>
+            <td>月額980円なら粗利率90%前後。<span class="pill info">推定</span></td>
+          </tr>
+          <tr>
+            <td>Apple の 30% 課金</td>
+            <td class="num">回避可能</td>
+            <td>iOSアプリを配信しない限りApp Review Guidelinesの対象外</td>
+          </tr>
+          <tr>
+            <td>決済手数料（Stripe＋Billing）</td>
+            <td class="num">約 4.3 %</td>
+            <td>固定費ゼロ</td>
+          </tr>
+          <tr>
+            <td>顧客獲得の導線</td>
+            <td class="num">友だち追加のみ</td>
+            <td>アプリのインストールが不要。CACを構造的に下げられる</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>向かい風</h3>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>項目</th><th class="num">水準</th><th>意味</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>日本の生成AI課金率</strong></td>
+            <td class="num">約 2.3 %</td>
+            <td>ChatGPT Plus の国内有償契約者は推計約14万人＝人口の0.11%。MAU 1億から市場を計算してはいけない</td>
+          </tr>
+          <tr>
+            <td>純正AIの価格</td>
+            <td class="num">290〜750 円／月</td>
+            <td>LYPプレミアム ライト290円、LINE AI使い放題750円。これが価格天井になる</td>
+          </tr>
+          <tr>
+            <td>純正の無料枠</td>
+            <td class="num">1日 3 回</td>
+            <td>有料でも1日10回。ここを超える価値を出せるかが問い</td>
+          </tr>
+          <tr>
+            <td>プッシュ通数</td>
+            <td class="num">人数分</td>
+            <td>40人グループへ15回配信＝600通。無料枠は200通</td>
+          </tr>
+          <tr>
+            <td>公式アカウントのブロック経験率</td>
+            <td class="num">約 70 %</td>
+            <td>最多の理由は「配信頻度の多さ」</td>
+          </tr>
+          <tr>
+            <td>BtoC月次チャーンの目安</td>
+            <td class="num">8〜10 %</td>
+            <td>平均継続10〜12ヶ月。LTVは1万円台が現実的なレンジ</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      要するに、<strong>1人あたりの利益率は高いが、有料化する人の絶対数が小さい</strong>。
+      フリーミアムにすると無料層のAPI代が効いてくるので、無料枠の設計（回数制限か、モデルのダウングレード）が生死を分ける。
+    </p>
+  </section>
+
+  <!-- ============ 5. 生き残っている側 ============ -->
+  <section>
+    <h2 class="sec">死んだ側と、生きている側</h2>
+    <p class="sec-note">同じカテゴリで、何が違ったのか。</p>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th>サービス</th>
+            <th class="num">状況</th>
+            <th>要因（公表内容および分析）</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Milo</strong><br><span style="color:var(--ink-faint);font-size:13px;">YC・OpenAI出資 $1.3M</span></td>
+            <td class="num" style="color:var(--crit)">終了<br>2026-01</td>
+            <td>SMSベースの家族アシスタント。献立からアクティビティ提案まで「全部やる」設計。創業者は技術の信頼性不足と低マージンを総括</td>
+          </tr>
+          <tr>
+            <td><strong>Maple</strong></td>
+            <td class="num" style="color:var(--crit)">終了予定<br>2026-12</td>
+            <td>無料のオールインワン家族オーガナイザー。収益化前にチームがアクハイア</td>
+          </tr>
+          <tr>
+            <td><strong>Discord Clyde</strong></td>
+            <td class="num" style="color:var(--crit)">終了<br>2023-12</td>
+            <td>β提供から9ヶ月で撤退。理由は非開示</td>
+          </tr>
+          <tr>
+            <td><strong>Rewind / Limitless</strong></td>
+            <td class="num" style="color:var(--crit)">実質終了<br>2025-12</td>
+            <td>パーソナルAIメモリ。Metaが買収しチームはReality Labsへ。製品は停止</td>
+          </tr>
+          <tr>
+            <td><strong>Skylight Calendar</strong></td>
+            <td class="num" style="color:var(--good)">稼働中<br>最も成功</td>
+            <td>ハードウェア（$380）＋年額$79。<strong>VCに依存せず自己資金経営。</strong>月間130〜170万世帯</td>
+          </tr>
+          <tr>
+            <td><strong>Ohai.ai</strong></td>
+            <td class="num" style="color:var(--good)">稼働中</td>
+            <td>シード$6M。<strong>「Chief Household Officer」という明確なペルソナ</strong>に絞り、SMS／メール経由。$9.99〜$29.99の有料サブスク</td>
+          </tr>
+          <tr>
+            <td><strong>AIチャットくん</strong><br><span style="color:var(--ink-faint);font-size:13px;">picon → MIXI</span></td>
+            <td class="num" style="color:var(--good)">Exit<br>2024-05</td>
+            <td>LINE上のChatGPT。<strong>単機能に徹した。</strong>1ヶ月で100万人、7ヶ月で250万人。月額990円。MIXIが子会社化</td>
+          </tr>
+          <tr>
+            <td><strong>Zapia</strong><br><span style="color:var(--ink-faint);font-size:13px;">中南米</span></td>
+            <td class="num" style="color:var(--good)">稼働中</td>
+            <td>WhatsApp発で600万ユーザー。<strong>2026年の締め出しを受け、自社所有のディストリビューションへ移行</strong>して生存</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      生存側に共通しているのは2つ。<strong>機能を絞っていること</strong>（AIチャットくんは単機能、Ohaiは単一ペルソナ、Skylightは単一のハード体験）。
+      そして<strong>プラットフォームに生殺与奪を握られていないこと</strong>（Skylightは自社ハード、Zapiaは自社配信へ移行）。
+    </p>
+  </section>
+
+  <!-- ============ 6. 選択肢 ============ -->
+  <section>
+    <h2 class="sec">では、どこで戦うか</h2>
+    <p class="sec-note">以下は調査からの解釈であって、事実ではない。判断材料として。</p>
+
+    <div class="option">
+      <div class="option-head">
+        <h3>案A：Agent i in chat の実機を見てから決める</h3>
+        <span class="pill good">推奨</span>
+      </div>
+      <dl>
+        <dt>中身</dt>
+        <dd>2026年内のリリースを待ち、実機で3点を検証する。①過去会話をどこまで遡れるか ②能動的に通知するか ③サードパーティBotと共存できるか。その結果でGo/No-Goを判断する。</dd>
+        <dt>根拠</dt>
+        <dd>白地とされる2機能が本当に白地なのか、現時点では確認できない。数ヶ月で答えが出る問いに、先に半年を投じる理由がない。</dd>
+        <dt>コスト</dt>
+        <dd>ほぼゼロ。待っている間に案Bのニッチ探索を並行できる。</dd>
+        <dt>弱点</dt>
+        <dd>1グループ1枠の先行者利益を取り逃す可能性。ただしニッチを絞るなら、その枠の競争はまだ発生していない。</dd>
+      </dl>
+    </div>
+
+    <div class="option">
+      <div class="option-head">
+        <h3>案B：純正が絶対にやらない一点に絞る</h3>
+        <span class="pill info">併走</span>
+      </div>
+      <dl>
+        <dt>中身</dt>
+        <dd>「家族の何でも屋」をやめ、単一の継続的な意思決定に絞る。プラットフォーマーが降りてこない条件は、市場が小さすぎるか、外部データとの統合が必要か、責任が重いか。</dd>
+        <dt>白地の型</dt>
+        <dd><strong>LINE外の文脈統合。</strong>Slackの構造的弱点として「知識がNotionやGoogle Docsにある場合、見える範囲だけ要約して残りを黙って落とす」ことが繰り返し指摘されている。Agent i も同様にLINE内で完結するはずで、外部SaaS横断のRAGには余地がある。</dd>
+        <dt>もう一つ</dt>
+        <dd><strong>プライバシー設計を売りにする。</strong>Microsoftは2026年7月、Teams AIへの反発を受けてCopilotを会議中にオフにできるようにした。Meta AIは削除できない仕様が反発を招いている。グループ内の非同意参加者の会話がAIに処理される点は普遍的な摩擦で、オプトイン設計自体が差別化になりうる。</dd>
+        <dt>弱点</dt>
+        <dd>ニッチの選定がすべて。ここを外すと、小さいだけの市場に着地する。</dd>
+      </dl>
+    </div>
+
+    <div class="option">
+      <div class="option-head">
+        <h3>案C：LINEを入口と割り切り、本体を自前で持つ</h3>
+        <span class="pill warn">中長期</span>
+      </div>
+      <dl>
+        <dt>中身</dt>
+        <dd>LINEは獲得チャネルとして使い、データとコア体験は自社のWeb／アプリに置く。Botは入口と通知だけを担当する。</dd>
+        <dt>根拠</dt>
+        <dd>Zapiaが2026年のWhatsApp締め出しを受けて実際に取った動き。Metaの前例がある以上、<strong>メッセージングはプラットフォームではなくチャネルだと構えておく</strong>のが安全側。</dd>
+        <dt>弱点</dt>
+        <dd>「アプリを入れさせない」というLINE Botの最大の利点を自ら手放すことになる。最初からこれをやると、導線の優位がなくなる。</dd>
+      </dl>
+    </div>
+
+    <h3>先に決めておくべきこと</h3>
+    <p>
+      撤退基準を、着手前に数字で置く。この種のプロダクトは「もう少しデータが貯まれば価値が出るはず」で延命しやすく、Miloが6年かけたのもおそらくそこに理由がある。
+      たとえば<strong>「導入から8週後の週次アクティブ率が30%を割ったら畳む」</strong>のように、伸ばしても回復しない指標を1つ選んでおく。
+    </p>
+  </section>
+
+  <!-- ============ 7. 検証すべきこと ============ -->
+  <section>
+    <h2 class="sec">この分析の限界</h2>
+    <p class="sec-note">判断に使う前に、確認が要る箇所。</p>
+
+    <div class="caveat">
+      <h3>一次ソースの全文確認ができていない</h3>
+      <p>
+        調査環境のネットワークポリシーにより、<code>lycorp.co.jp</code>（LINEヤフー公式リリース）、<code>developers.line.biz</code>（LINE Developers）、
+        <code>lycbiz.com</code>（料金ページ）、<code>platform.openai.com</code> などへの直接アクセスが遮断されていた。
+        本レポートの多くは<strong>検索エンジン経由で得た要約と、複数の二次ソースの一致</strong>にもとづく。
+        Anthropicの価格ページとApple App Review Guidelines は直接取得できており、この2点は確度が高い。
+      </p>
+    </div>
+
+    <p><strong>実装・投資判断の前に、原文で確認すべき項目：</strong></p>
+    <ul>
+      <li><strong>Agent i in chat の正式仕様</strong> — グループでの呼び出し方法、無料／有料の線引き、サードパーティBotとの共存可否</li>
+      <li><strong>LINE公式アカウント API利用規約</strong> — Metaが2025年10月に入れたのと同種の「汎用AIアシスタント禁止」条項の有無。これが最大の単一リスク</li>
+      <li><strong>グループ内Botのメッセージ受信仕様</strong> — 全メッセージが届くのか、メンション時のみか</li>
+      <li><strong>会話ログを海外LLM APIに送る際の越境移転の扱い</strong> — 個人情報保護法28条。「学習に使わせない」設定でクラウド例外に読めるかは解釈が分かれる論点で、法務確認が要る</li>
+      <li><strong>LINE公式アカウント上での外部決済誘導の可否</strong> — 収益化の前提が崩れる可能性がある</li>
+    </ul>
+
+    <p>
+      また、<strong>AIチャットくんの2026年時点のユーザー数と現況は確認できなかった</strong>。
+      確実な公表値は2024年5月の「累計500万人超」までで、以降のプレスリリースが見つかっていない。直近の勢いは不明。
+    </p>
+  </section>
+
+  <p class="footnote">
+    調査は3系統の並列Web検索（日本のLINE AI Bot競合とLINEヤフーの動向／グローバルの類似カテゴリと失敗事例／市場規模・ユニットエコノミクス・法規制）による。
+    数値には推定と実測が混在しており、「推定」と明示したものは試算値。円換算は 1 USD ≒ 157円（2026年8月）。
+    価格・仕様は調査時点のもので、特にLINE関連は2026年10月の料金改定とAgent i in chat のリリースで変動する。
+  </p>
+
+</div>
